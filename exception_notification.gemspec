@@ -14,8 +14,14 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = ">= 3.2"
 
-  s.files = `git ls-files | grep -v '^examples'`.split("\n")
-  s.files -= `git ls-files -- .??*`.split("\n")
+  s.files = Dir[
+    "lib/**/*",
+    "docs/**/*",
+    "MIT-LICENSE",
+    "Rakefile",
+    "*.md",
+    "*.rdoc"
+  ].reject { |f| File.directory?(f) }
   s.require_path = "lib"
 
   s.add_dependency("actionmailer", ">= 7.1", "< 9")
