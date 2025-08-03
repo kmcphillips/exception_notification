@@ -1,5 +1,9 @@
 == Unreleased
 
+nil
+
+== 5.0.1
+
 * Change packaged gem files. Remove unnecessary files which cause warnings in some envs. #9 (@brianclinkenbeard)
 
 == 5.0.0
