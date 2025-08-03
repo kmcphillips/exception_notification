@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
     "lib/**/*",
     "docs/**/*",
     "MIT-LICENSE",
+    "exception_notification.gemspec",
     "Rakefile",
     "*.md",
     "*.rdoc"
