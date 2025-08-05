@@ -15,7 +15,6 @@ module ExceptionNotifier
 
         webhook_url = options.fetch(:webhook_url)
         @message_opts = options.fetch(:additional_parameters, {})
-        @color = @message_opts.delete(:color) { "danger" }
         @notifier = Slack::Notifier.new webhook_url, options
       rescue
         @notifier = nil
@@ -24,11 +23,11 @@ module ExceptionNotifier
 
     def call(exception, options = {})
       clean_message = exception.message.tr("`", "'")
-      attchs = attchs(exception, clean_message, options)
+      blocks = build_blocks(exception, clean_message, options)
 
       return unless valid?
 
-      args = [exception, options, clean_message, @message_opts.merge(attachments: attchs)]
+      args = [exception, options, clean_message, @message_opts.merge(blocks: blocks)]
       send_notice(*args) do |_msg, message_opts|
         message_opts[:channel] = options[:channel] if options.key?(:channel)
 
@@ -52,12 +51,39 @@ module ExceptionNotifier
 
     private
 
-    def attchs(exception, clean_message, options)
+    def build_blocks(exception, clean_message, options)
       text, data = information_from_options(exception.class, options)
       backtrace = clean_backtrace(exception) if exception.backtrace
       fields = fields(clean_message, backtrace, data)
 
-      [color: @color, text: text, fields: fields, mrkdwn_in: %w[text fields]]
+      blocks = []
+
+      blocks << {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: ":rotating_light: #{ text.strip }"
+        }
+      }
+
+      blocks << { type: 'divider' }
+
+      # Format fields into grouped sections
+      formatted_fields = fields.map do |f|
+        "*#{ f[:title] }:* #{ f[:value] }"
+      end
+
+      formatted_fields.each do |field_text|
+        blocks << {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: field_text
+          }
+        }
+      end
+
+      blocks
     end
 
     def information_from_options(exception_class, options)

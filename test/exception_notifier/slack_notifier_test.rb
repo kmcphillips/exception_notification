@@ -152,7 +152,7 @@ class SlackNotifierTest < ActiveSupport::TestCase
       username: "test",
       custom_hook: "hook",
       pre_callback: proc { |_opts, _notifier, backtrace, _message, message_opts|
-        (message_opts[:attachments] = []) << {text: backtrace.join("\n").to_s, color: "danger"}
+        (message_opts[:blocks] = []) << {type: 'section', text: {type: 'mrkdwn', text: backtrace.join("\n").to_s}}
       },
       post_callback: proc { |_opts, _notifier, _backtrace, _message, _message_opts|
         post_callback_called = 1
@@ -164,10 +164,9 @@ class SlackNotifierTest < ActiveSupport::TestCase
 
     Slack::Notifier.any_instance.expects(:ping).with("",
       {icon_url: "icon",
-       attachments: [{
-         text: fake_backtrace.join("\n"),
-         color: "danger"
-       }]})
+       blocks: [
+         { type: 'section', text: { type: 'mrkdwn', text: fake_backtrace.join("\n") }
+      }]})
 
     slack_notifier = ExceptionNotifier::SlackNotifier.new(options)
     slack_notifier.call(@exception)
@@ -201,28 +200,30 @@ class SlackNotifierTest < ActiveSupport::TestCase
     data_string = nil, expected_backtrace_lines = 10, additional_fields = [])
     exception_name = "*#{/^[aeiou]/i.match?(exception.class.to_s) ? "An" : "A"}* `#{exception.class}`"
     if notification_options[:env].nil?
-      text = "#{exception_name} *occured in background*"
+      text = ":rotating_light: #{exception_name} *occured in background*"
     else
       env = notification_options[:env]
 
       kontroller = env["action_controller.instance"]
       request = "#{env["REQUEST_METHOD"]} <#{env["REQUEST_URI"]}>"
 
-      text = "#{exception_name} *occurred while* `#{request}`"
+      text = ":rotating_light: #{exception_name} *occurred while* `#{request}`"
       text += " *was processed by* `#{kontroller.controller_name}##{kontroller.action_name}`" if kontroller
     end
 
-    text += "\n"
-
-    fields = [{title: "Exception", value: exception.message}]
-    fields.push(title: "Hostname", value: "example.com")
+    fields = [{type: "section", text: {type: "mrkdwn", text: text}}]
+    fields.push({type:"divider"})
+    fields.push({type: 'section', text: {type: "mrkdwn", text: "*Exception:* #{ exception.message }"}})
+    fields.push({type: 'section', text: {type: "mrkdwn", text: "*Hostname:* example.com"}})
     if exception.backtrace
       formatted_backtrace = "```#{fake_cleaned_backtrace.first(expected_backtrace_lines).join("\n")}```"
-      fields.push(title: "Backtrace", value: formatted_backtrace)
+      fields.push({type: "section", text: {type: "mrkdwn", text: "*Backtrace:* #{formatted_backtrace}"}})
     end
-    fields.push(title: "Data", value: "```#{data_string}```") if data_string
-    additional_fields.each { |f| fields.push(f) }
+    fields.push({type: "section", text: { type: "mrkdwn", text: "*Data:* ```#{data_string}```" }}) if data_string
+    additional_fields.each do |f|
+      fields.push({type: "section", text: { type: "mrkdwn", text: "*#{f[:title]}:* #{f[:value]}"}})
+    end
 
-    {attachments: [color: "danger", text: text, fields: fields, mrkdwn_in: %w[text fields]]}
+    {blocks: fields}
   end
 end
